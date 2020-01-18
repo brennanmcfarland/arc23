@@ -7,5 +7,8 @@ I created this library because moving from Keras to PyTorch, I found PyTorch to 
 ## State of the Project
 My goal is to actually try and keep the master branch working at all times (shocking!), but I will be adding to/modifying this library as I continue to use it to expand and refine its functionality.
 
+## Example
+As an example/demo, see https://github.com/brennanmcfarland/torch-art, a classifier CNN on the Cleveland Museum of Art dataset to test out this library.
+
 ## The Name
 I wanted to name this library something cool, preferably something that played on the whole fire theme from PyTorch.  So I came up with a few great ideas for cool sounding fire-related names.  All were taken.  So I came up with more ideas, but those were taken too.  So I gave up and named it something that makes no sense at all, but at least it sounds cool.
