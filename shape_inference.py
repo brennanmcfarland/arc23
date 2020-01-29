@@ -1,11 +1,10 @@
 import torch.nn as nn
-from app import dry_run
 
 
 # assumes that any nested submodules have already had their shape inferred if necessary
 # TODO: in the future may want a recursive function for that
-def infer_shapes(layers, loader):
-    infer = ShapeInferer(loader)
+def infer_shapes(layers, loader, run_func):
+    infer = ShapeInferer(run_func, loader)
     for l in range(len(layers[1:])):
         layers[l+1] = layers[l+1](infer(layers[:l+1]))
 
@@ -30,8 +29,9 @@ class Input(nn.Module):
 # device isn't used since it's probably less efficient to move the incrementally created network each time, anyway
 # if the loader is used, it's assumed every example will have the same number of channels/features
 class ShapeInferer:
-    def __init__(self, loader=None, custom_layer_types=None, custom_layer_superclasses=None):
+    def __init__(self, run_func, loader=None, custom_layer_types=None, custom_layer_superclasses=None):
         self.shape = None
+        self.run_func = run_func
         self.loader = loader
 
         self.custom_layer_types = None
@@ -60,7 +60,7 @@ class ShapeInferer:
             return _r
 
         if self.loader is not None:
-            return dry_run(model, self.loader, None, _run)()
+            return self.run_func(model, self.loader, None, _run)()
         else:
             raise TypeError("A data loader must be provided for shape inference with " + layer_type.__name__)
 
