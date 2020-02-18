@@ -16,8 +16,8 @@ class Trainer:
 def dry_run(net, loader, trainer, train_step_func, device=None):
     def _apply():
         prev_mode = get_train_mode_tree(net)
-        batch = iter(loader).next()
-        result = train_step_func(net, trainer, device=device)(batch[0]['data'], batch[0]['label']) # TODO: batch size > 1
+        batch = next(iter(loader))
+        result = train_step_func(net, trainer, device=device)(batch[0], batch[1]) # TODO: replace #s with dict?
         set_train_mode_tree(net, prev_mode)
         return result
     return _apply
@@ -62,7 +62,7 @@ def test(net, loader, metrics=None, device=None):
     print('TESTING')
     with torch.no_grad():
         for l in loader:
-            (inputs, gtruth) = l[0]['data'], l[0]['label'] # TODO: fix, this will not work for batch size > 1, need to make a wrapper iterator around DALI iterator
+            (inputs, gtruth) = l[0], l[1] # TODO: ""
             inputs, gtruth = inputs.to(device, non_blocking=True), gtruth.to(device, non_blocking=True)
             outputs = net(inputs)
             run_callbacks("on_item", metrics, inputs, outputs, gtruth)

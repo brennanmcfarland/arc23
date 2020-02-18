@@ -77,8 +77,7 @@ class ShapeInferer:
             if prev_layer.size is not None:
                 return prev_layer.size
             else:
-                z = iter(self.loader).next()
-                inputs = iter(self.loader).next()[0]['data']
+                inputs = next(iter(self.loader))[0]
                 return inputs.size()[1]
         elif issubclass(layer_type, nn.modules.conv._ConvNd) or layer_type.__name__ is 'Linear':
             # the out_features dim

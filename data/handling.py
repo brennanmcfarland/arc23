@@ -1,6 +1,7 @@
 import torch.utils.data as torchdata
 import torch
 from nvidia import dali
+from nvidia.dali.plugin.pytorch import DALIGenericIterator
 
 
 class PreparedDataset(torchdata.Dataset):
@@ -17,12 +18,46 @@ class PreparedDataset(torchdata.Dataset):
         return self.metadata_len
 
 
+# TODO: change name to indicate it's an iterable dataset or generalize?
+class DALIDataset(torchdata.IterableDataset):
+    def __init__(self, data_dir, metadata, class_to_index, device='cpu'):
+        super(DALIDataset).__init__()
+        self.dali_pipeline = _DALIDataset(data_dir, metadata, class_to_index, device)
+        self.iterator = None
+        self.iter = None
+        self.len_metadata = len(metadata)
+        self.index = 0
+
+    def build(self):
+        self.dali_pipeline.build()
+        self.iterator = DALIGenericIterator(self.dali_pipeline, ['data', 'label'], self.len_metadata)
+
+    # TODO: reset?
+    def __iter__(self):
+        self.iter = iter(self.iterator)
+        return self
+
+    # TODO: get to work with multiple workers, see https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset
+    def __next__(self):
+        # TODO: is iter() necessary/right each time?
+        # TODO: is this necessary? may bubble up from below (if so should comment that assumption)
+        if self.index == self.len_metadata:
+            raise StopIteration
+        self.index += 1
+        iteration = self.iter.next()
+        return iteration[0]['data'], iteration[0]['label'] # TODO: make work for batch size > 1
+
+    def __len__(self):
+        return self.len_metadata
+
+    
 # TODO: abstract out
 # TODO: build in batch size or integrate it w pytorch better
-class DALIDataset(dali.pipeline.Pipeline):
+# the implementation of the DALI pipeline for a DALI dataset
+class _DALIDataset(dali.pipeline.Pipeline):
 
     def __init__(self, data_dir, metadata, class_to_index, device='cpu'):
-        super(DALIDataset, self).__init__(batch_size=1, num_threads=1, device_id=0)
+        super(_DALIDataset, self).__init__(batch_size=1, num_threads=1, device_id=0)
         self.input = dali.ops.FileReader(file_root=data_dir, file_list='./preprocessed_data.csv')
         self.decode = dali.ops.ImageDecoder() # TODO: make device configurable
         self.cast = dali.ops.Cast(dtype=dali.types.DALIDataType.FLOAT) # TODO: better data type? make settable?
@@ -48,8 +83,6 @@ class DALIDataset(dali.pipeline.Pipeline):
     # def __getitem__(self, item):
     #     return self.run()
 
-    def __len__(self):
-        return 100 # TODO
 
 
 def metadata_to_prepared_dataset(metadata, *args, **kwargs):
