@@ -56,7 +56,7 @@ class ShapeInferer:
 
         def _run(net, trainer, device):
             def _r(inputs, gtruth):
-                return model(inputs.to('cpu'))
+                return model(inputs.to('cpu'))  # all shape inference is done on cpu
             return _r
 
         if self.loader is not None:
@@ -77,7 +77,7 @@ class ShapeInferer:
             if prev_layer.size is not None:
                 return prev_layer.size
             else:
-                inputs = next(iter(self.loader))[0]
+                inputs = next(iter(self.loader))['inputs']
                 return inputs.size()[1]
         elif issubclass(layer_type, nn.modules.conv._ConvNd) or layer_type.__name__ is 'Linear':
             # the out_features dim
