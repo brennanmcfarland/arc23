@@ -45,3 +45,11 @@ def prepare_example(get_image, get_label):
     def _prepare(metadatum):
         return get_image(metadatum), get_label(metadatum)
     return _prepare
+
+
+# given a transform function that given a metadatum returns a line to write, apply it to each metadatum and write
+# the output to the given file
+def write_transformed_metadata_to_file(metadata, out_path, transform):
+    with open(out_path, 'w+', newline='', encoding="utf8") as out_file:
+        for metadatum in metadata:
+            out_file.write(transform(metadatum))

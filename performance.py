@@ -1,7 +1,7 @@
 import torch.backends as backends
 import torch.cuda as cuda
 import torch.nn as nn
-import torch.utils as utils
+import torch.utils.checkpoint as torchcheckpoint
 
 
 # TODO: move feature maps out of VRAM
@@ -71,7 +71,7 @@ class CheckpointedSequential(nn.Module):
         self.num_checkpoints = num_checkpoints
 
     def forward(self, x):
-        return utils.checkpoint.checkpoint_sequential(self.sequential, self.num_checkpoints + 1, x)
+        return torchcheckpoint.checkpoint_sequential(self.sequential, self.num_checkpoints + 1, x)
 
     def children(self):
         return self.sequential
