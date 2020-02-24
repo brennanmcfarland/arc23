@@ -1,4 +1,4 @@
-# arctic-flaming-monkey-typhoon
+# Arctic Flaming Monkey Typhoon (arc23)
 A deep learning library built on/to be used in conjunction with PyTorch
 
 ## Purpose
