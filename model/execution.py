@@ -16,20 +16,22 @@ def dry_run(net, loader, trainer, train_step_func, device=None):
     def _apply():
         prev_mode = get_train_mode_tree(net)
         batch = next(iter(loader))
-        result = train_step_func(net, trainer, device=device)(batch['inputs'], batch['labels']) # TODO: generalize?
+        result = train_step_func(net, trainer, device=device)(batch['inputs'], batch['labels'])  # TODO: generalize?
         set_train_mode_tree(net, prev_mode)
         return result
     return _apply
 
 
-def train_step(net, trainer, device=None):
+# TODO: fix squeeze_gtruth, shouldn't need
+def train_step(net, trainer, device=None, squeeze_gtruth=False):
     def _apply(inputs, gtruth):
         inputs, gtruth = inputs.to(device, non_blocking=True), gtruth.to(device, non_blocking=True)
         trainer.optimizer.zero_grad()  # reset the gradients to zero
 
         # run the inputs through the network and compute loss relative to gtruth
         outputs = net(inputs)
-        gtruth = gtruth.squeeze(-1) # TODO: remove? put in data loader? should be general
+        if squeeze_gtruth:
+            gtruth = gtruth.squeeze(-1)
         loss = trainer.loss(outputs, gtruth)
         loss.backward()
         trainer.optimizer.step()
@@ -37,13 +39,13 @@ def train_step(net, trainer, device=None):
     return _apply
 
 
-def train(net, loader, trainer, callbacks=None, device=None, epochs=1):
+def train(net, loader, trainer, callbacks=None, device=None, epochs=1, squeeze_gtruth=False):
     if callbacks is None:
         callbacks = []
 
-    steps_per_epoch = len(loader) # TODO: make this part of wrapper also
+    steps_per_epoch = len(loader)
     callbacks = [callback(steps_per_epoch) for callback in callbacks]
-    take_step = train_step(net, trainer, device=device)
+    take_step = train_step(net, trainer, device=device, squeeze_gtruth=squeeze_gtruth)
 
     for epoch in range(epochs):
         print('----BEGIN EPOCH ', epoch, '----')
