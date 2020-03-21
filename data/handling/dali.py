@@ -53,10 +53,11 @@ class _DALIDataset(dali.pipeline.Pipeline):
 
 
 # a standard DALI pipeline closure for the common case of loading and preformatting images and their respective labels
-def dali_standard_image_classification_pipeline(data_dir, metadata_filename):
+def dali_standard_image_classification_pipeline(data_dir, metadata_filename, batch_normalize=True):
     input = dali.ops.FileReader(file_root=data_dir, file_list=metadata_filename, random_shuffle=True)
     decode = dali.ops.ImageDecoder()
     cast = dali.ops.Cast(dtype=dali.types.DALIDataType.FLOAT)  # TODO: better data type?
+    normalize = dali.ops.Normalize(device='cpu', batch=batch_normalize)
     targetcast = dali.ops.Cast(dtype=dali.types.DALIDataType.INT64)  # TODO: better data type?
     transpose = dali.ops.Transpose(perm=[2, 0, 1], device='gpu')
     targetreshape = dali.ops.Reshape(shape=1)
@@ -65,6 +66,7 @@ def dali_standard_image_classification_pipeline(data_dir, metadata_filename):
         img, label = input()
         img = decode(img)
         img = cast(img)
+        img = normalize(img)
         img = transpose(img.gpu())
         return img, targetreshape(targetcast(label))
     return _apply

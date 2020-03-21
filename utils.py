@@ -12,7 +12,7 @@ def try_reduce_list(l):
 # hook is the specific point at which the callbacks are being called, eg on_step
 def run_callbacks(hook, callbacks, *args):
     results = []
-    for callback in callbacks:
-        if hook in callback:
-            results.append(callback[hook](*args))
+    if hook in callbacks:
+        for callback in callbacks[hook]:
+            results.append(callback(*args))
     return results

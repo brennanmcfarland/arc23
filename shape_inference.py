@@ -86,6 +86,8 @@ class ShapeInferer:
             # feed an example through the data loader and manually capture the output shape
             return self._run_prev_layers(prev_layers, layer_type).size()[-1]
         elif (layer_type.__name__ is 'ReLU'
+              or layer_type.__name__ is 'LeakyReLU'
+              or issubclass(layer_type, nn.modules.batchnorm._BatchNorm)
               or issubclass(layer_type, nn.modules.pooling._MaxPoolNd)):
             # reuse and pass along the previously inferred shape unchanged
             return self._infer(prev_layers[-2], prev_layers[:-1])

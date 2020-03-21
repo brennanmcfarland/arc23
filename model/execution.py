@@ -44,10 +44,11 @@ def train(net, loader, trainer, callbacks=None, device=None, epochs=1, squeeze_g
         callbacks = []
 
     steps_per_epoch = len(loader)
-    callbacks = [callback(steps_per_epoch) for callback in callbacks]
+    callbacks = {hook: [callback(steps_per_epoch) for callback in callbacks] for hook, callbacks in callbacks.items()}
     take_step = train_step(net, trainer, device=device, squeeze_gtruth=squeeze_gtruth)
 
     for epoch in range(epochs):
+        run_callbacks("on_epoch_start", callbacks)
         print('----BEGIN EPOCH ', epoch, '----')
         for step, datum in enumerate(loader):
             loss = take_step(datum['inputs'], datum['labels'])
