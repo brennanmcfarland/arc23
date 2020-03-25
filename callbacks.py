@@ -1,9 +1,7 @@
 from tabulate import tabulate
-import collections
 
-import torch
 import torch.utils.tensorboard as tensorboard
-import torch.nn as nn
+
 
 # all callbacks should document their performance impact with respect to how often they are meant to be called
 # TODO: move actual calculations like these into a "diagnostics" file, and make callbacks just have funcs that accept
@@ -41,94 +39,49 @@ def calc_interval_avg_loss(print_interval):
     return _bind
 
 
-# TODO: cleanup and maybe merge w other func below
-def _apply_to_tensors_in_iterable(tensors, func):
-    if not isinstance(tensors, torch.Tensor):
-        return [_apply_to_tensors_in_iterable(t, func) for t in tensors]
-    else:
-        return func(tensors)
-
-
-# TODO: merge w that and stats on outputs?
 # TODO: abstract out w profiling into general func?
-def calc_layer_grad_stats(net, run_func, stat_funcs=(torch.var_mean,)):
+# TODO: reorganize/combine wrapper funcs with hook funcs?
+# TODO: may be able/need to delete after completing func in evaluation.py
+def run_with_hooks(net, run_func, hook_funcs, wrapper_funcs):
     hooks = []
-    results_table = []
 
-    def hook_func(layer, grad_input, grad_output):
-        if hasattr(layer, 'weight'):
-            stats = [_apply_to_tensors_in_iterable(grad_output, func) for func in stat_funcs]
-            stats = _tensor_items_in_iterable(stats)
-            func_names = [func.__name__ for func in stat_funcs]
-            labelled_stats = [type(layer).__name__] + list(zip(func_names, stats))
-            results_table.append(labelled_stats)
+    def get_register_func(direction):
+        if direction == "forward":
+            return lambda l: l.register_forward_hook
+        elif direction == "backward":
+            return lambda l: l.register_backward_hook
+        else:
+            raise ValueError("Invalid pass direction for running with hooks")
 
-    def _add_hook(net):
-        hooks.append(
-            net.register_backward_hook(hook_func))
+    def _add_hook(layer):
+        for hook_func, wrapper_func in zip(hook_funcs, wrapper_funcs):
+            func, direction = hook_func()
+            hooks.append(get_register_func(direction)(layer)(lambda l, i, o: wrapper_func(func(l, i, o))))
 
-    def _bind(steps_per_epoch):
-        def _run():
-            net.apply(_add_hook)
-            run_func()
-            print(tabulate(results_table, headers=['Layer', 'Stats']))
-            for h in hooks:
-                h.remove()
-        return _run
-    return _bind
+    def _run():
+        net.apply(_add_hook)
+        run_func()
+        for h in hooks:
+            h.remove()
+    return _run
 
 
 # high performance impact, should be run on a per-epoch basis
-def calc_layer_stats(net, stat_funcs=(torch.var_mean,)):
+def calc_layer_stats(net, run_func, hook_funcs):
+
+    results = [[]] * len(hook_funcs)
+
+    wrappers = [lambda result: results[i].append(result) for i in range(len(hook_funcs))]
+
+    runner = run_with_hooks(net, run_func, hook_funcs, wrappers)
+
     def _bind(steps_per_epoch):
         def _run():
-            layers = net.modules()
-            stats = _calc_weighted_layer_stats(layers, stat_funcs, lambda l, layer, layers: layer.weight)
-            return stats
+            runner()
+            for hook_results in results:
+                print(tabulate(hook_results, headers=['Layer', 'Stats']))
         return _run
     return _bind
-
-
-# high performance impact, should be run on a per-epoch basis
-def calc_layer_output_stats(net, loader, stat_funcs=(torch.var_mean,)):
-    def _bind(steps_per_epoch):
-        def _run():
-            layers = net.children()
-            datum = next(iter(loader))
-            stats = _calc_weighted_layer_stats(
-                layers,
-                stat_funcs,
-                lambda l, layer, layers: nn.Sequential(layers[:l])(datum['inputs'])
-            )
-            # reset loader
-            iter(loader)
-            return stats
-        return _run
-    return _bind
-
-
-# helper function to extract the values of scalar tensors from a possibly nested iterable
-# may want to move somewhere more general if ever needed
-def _tensor_items_in_iterable(tensors):
-    if not isinstance(tensors, torch.Tensor):
-        return [_tensor_items_in_iterable(t) for t in tensors]
-    else:
-        return tensors.item()
-
-
-# helper func for calculating stats associated with weighted layers
-def _calc_weighted_layer_stats(layers, stat_funcs, provide_tensor):
-    stats_table = []
-    for l, layer in enumerate(layers):
-        if hasattr(layer, 'weight'):
-            with torch.no_grad():
-                stats = [func(provide_tensor(l, layer, layers)) for func in stat_funcs]
-                stats = _tensor_items_in_iterable(stats)
-                func_names = [func.__name__ for func in stat_funcs]
-                labelled_stats = [type(layer).__name__] + list(zip(func_names, stats))
-                stats_table.append(labelled_stats)
-    print(tabulate(stats_table, headers=['Layer', 'Stats']))
-    return stats_table
 
 
 # helper functor for calc_interval_avg_loss, since it's stateful
