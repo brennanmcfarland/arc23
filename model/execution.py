@@ -73,3 +73,28 @@ def test(net, loader, metrics=None, device=None):
 
 # validation is just an alias for testing
 validate = test
+
+
+# run one pass of the network with a hook on each module
+# NOTE: output_func cannot return anything or it will change the network's parameters
+def run_with_hook(net, run_func, hook_func, output_func):
+    hooks = []
+
+    def get_register_func(direction):
+        if direction == "forward":
+            return lambda l: l.register_forward_hook
+        elif direction == "backward":
+            return lambda l: l.register_backward_hook
+        else:
+            raise ValueError("Invalid pass direction for running with hooks")
+
+    def _add_hook(layer):
+        func, direction = hook_func()
+        hooks.append(get_register_func(direction)(layer)(lambda l, i, o: output_func(func(l, i, o))))
+
+    def _run():
+        net.apply(_add_hook)
+        run_func()
+        for h in hooks:
+            h.remove()
+    return _run

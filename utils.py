@@ -16,3 +16,19 @@ def run_callbacks(hook, callbacks, *args):
         for callback in callbacks[hook]:
             results.append(callback(*args))
     return results
+
+
+# return the return value of func every nth time this is called, else return None
+def on_interval(func, interval):
+    class OnInterval:
+
+        def __init__(self, func, interval):
+            self.interval = interval
+            self.call_counter = 0
+            self.func = func
+
+        def __call__(self, *args, **kwargs):
+            self.call_counter = (self.call_counter + 1) % self.interval
+            if self.call_counter == 0:
+                return self.func(*args, **kwargs)
+    return OnInterval(func, interval)
