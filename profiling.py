@@ -1,17 +1,21 @@
 import torch.cuda as cuda
+
 from tabulate import tabulate
 import functools  # TODO: may be a lot more here we can use, especially see single dispatch and cached property
 import math
+from typing import Callable, Any
+
+from __types import Module, Device, Tensor
 
 
 # NOTE: only works on CUDA
-def profile_cuda_memory_by_layer(net, run_func, device=None):
+def profile_cuda_memory_by_layer(net: Module, run_func: Callable[[], Any], device: Device = None) -> None:
     assert cuda.is_available()
 
     profiler_hooks = []
     results_table = []
 
-    def _profile_layer(net, input, output, pass_type):
+    def _profile_layer(net: Module, input: Tensor, output: Tensor, pass_type: str) -> None:
         results_table.append([
             pass_type,
             type(net).__name__,
@@ -19,7 +23,7 @@ def profile_cuda_memory_by_layer(net, run_func, device=None):
             _format_memory_cached(device)
         ])
 
-    def _add_profiler_hook(net):
+    def _add_profiler_hook(net: Module) -> None:
         profiler_hooks.append(net.register_forward_hook(functools.partial(_profile_layer, pass_type='FORWARD PASS')))
         profiler_hooks.append(net.register_backward_hook(functools.partial(_profile_layer, pass_type='BACKWARD PASS')))
 
@@ -50,15 +54,15 @@ def profile_cuda_memory_by_layer(net, run_func, device=None):
     cuda.reset_max_memory_cached(device)
 
 
-def _format_memory_allocated(device):
+def _format_memory_allocated(device: Device) -> str:
     return _format_size(cuda.memory_allocated(device))
 
 
-def _format_memory_cached(device):
+def _format_memory_cached(device: Device) -> str:
     return _format_size(cuda.memory_cached(device))
 
 
-def _format_size(bytes):
+def _format_size(bytes: int) -> str:
     if bytes == 0:
         return "0B"
     units = ('B', 'KB', 'MB', 'GB', 'TB')

@@ -1,30 +1,48 @@
+from typing import Callable, Any, Tuple, Iterable, Optional, Union
+
 import torch
+from torch.optim.optimizer import Optimizer
 
 from model.state import get_train_mode_tree, set_train_mode_tree
-from utils import try_reduce_list, run_callbacks
+from __utils import try_reduce_list, run_callbacks, run_metrics
+from __types import ModuleProperty, Method, Device, MetricFuncs, Tensor, Module, Loader
 
 
 class Trainer:
 
-    def __init__(self, optimizer, loss):
+    def __init__(self, optimizer: Optimizer, loss):
         self.optimizer = optimizer
         self.loss = loss
 
 
 # runs the network once without modifying the loader's state as a test/for profiling
-def dry_run(net, loader, trainer, train_step_func, device=None):
+def dry_run(
+        net: Module,
+        loader: Loader,
+        trainer: Union[Optional[Trainer], Callable[[Module], Optional[Trainer]]],
+        train_step_func: Callable,
+        device: Device = None
+):
+    tr = trainer
+
     def _apply():
+        # the trainer will need to be reinitialized if the model has changed
+        if callable(tr):
+            trn = tr(net)
+        else:
+            trn = tr
+
         prev_mode = get_train_mode_tree(net)
         batch = next(iter(loader))
-        result = train_step_func(net, trainer, device=device)(batch['inputs'], batch['labels'])  # TODO: generalize?
+        result = train_step_func(net, trn, device=device)(batch['inputs'], batch['labels'])  # TODO: generalize?
         set_train_mode_tree(net, prev_mode)
         return result
     return _apply
 
 
 # TODO: fix squeeze_gtruth, shouldn't need
-def train_step(net, trainer, device=None, squeeze_gtruth=False):
-    def _apply(inputs, gtruth):
+def train_step(net: Module, trainer: Trainer, device: Device = None, squeeze_gtruth: bool = False):
+    def _apply(inputs: Tensor, gtruth: Tensor):
         inputs, gtruth = inputs.to(device, non_blocking=True), gtruth.to(device, non_blocking=True)
         trainer.optimizer.zero_grad()  # reset the gradients to zero
 
@@ -39,7 +57,8 @@ def train_step(net, trainer, device=None, squeeze_gtruth=False):
     return _apply
 
 
-def train(net, loader, trainer, callbacks=None, device=None, epochs=1, squeeze_gtruth=False):
+def train(net: Module, loader: Loader, trainer: Trainer, callbacks=None, device=None, epochs=1, squeeze_gtruth=False
+          ) -> None:
     if callbacks is None:
         callbacks = []
 
@@ -57,7 +76,13 @@ def train(net, loader, trainer, callbacks=None, device=None, epochs=1, squeeze_g
     print('TRAINING COMPLETE!')
 
 
-def test(net, loader, metrics=None, device=None):
+def test(
+        net: Module,
+        loader: Loader,
+        metrics: Iterable[MetricFuncs] = None,
+        device: Device = None,
+        squeeze_gtruth: bool = False
+):
     if metrics is None:
         metrics = []
 
@@ -67,8 +92,10 @@ def test(net, loader, metrics=None, device=None):
             (inputs, gtruth) = l['inputs'], l['labels']
             inputs, gtruth = inputs.to(device, non_blocking=True), gtruth.to(device, non_blocking=True)
             outputs = net(inputs)
-            run_callbacks("on_item", metrics, inputs, outputs, gtruth)
-    return try_reduce_list(run_callbacks("on_end", metrics))
+            if squeeze_gtruth:
+                gtruth = gtruth.squeeze(-1)
+            run_metrics("on_item", metrics, inputs, outputs, gtruth)
+    return try_reduce_list(run_metrics("on_end", metrics))
 
 
 # validation is just an alias for testing
@@ -77,10 +104,15 @@ validate = test
 
 # run one pass of the network with a hook on each module
 # NOTE: output_func cannot return anything or it will change the network's parameters
-def run_with_hook(net, run_func, hook_func, output_func):
+def run_with_hook(
+        net: Module,
+        run_func: Callable[[], Any],
+        hook_func: Callable[[], Tuple[ModuleProperty, str]],
+        output_func: Method[Any]
+) -> Method:
     hooks = []
 
-    def get_register_func(direction):
+    def get_register_func(direction: str):
         if direction == "forward":
             return lambda l: l.register_forward_hook
         elif direction == "backward":
@@ -88,7 +120,7 @@ def run_with_hook(net, run_func, hook_func, output_func):
         else:
             raise ValueError("Invalid pass direction for running with hooks")
 
-    def _add_hook(layer):
+    def _add_hook(layer: Module):
         func, direction = hook_func()
         hooks.append(get_register_func(direction)(layer)(lambda l, i, o: output_func(func(l, i, o))))
 

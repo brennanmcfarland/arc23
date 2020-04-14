@@ -3,11 +3,12 @@ import requests
 from PIL import Image
 from io import BytesIO
 import csv
+from typing import Iterable, List, Tuple, Dict, Callable, Union, Collection
 
 
 # pull the image from the api endpoint and save it if we don't have it, else load it from disk
-def get_img_from_file_or_url(img_format='JPEG'):
-    def _apply(filepath, url):
+def get_img_from_file_or_url(img_format: str = 'JPEG') -> Callable[[str, str], Image.Image]:
+    def _apply(filepath: str, url: str) -> Image.Image:
         img = from_file(filepath)
         if img is None:
             img = from_url(url)
@@ -16,25 +17,26 @@ def get_img_from_file_or_url(img_format='JPEG'):
     return _apply
 
 
-def from_url(url):
+def from_url(url: str) -> Image.Image:
     api_response = requests.get(url).content
     response_bytes = BytesIO(api_response)
     return Image.open(response_bytes)
 
 
-def from_file(path):
+def from_file(path: str) -> Union[Image.Image, None]:
     if os.path.exists(path):
         return Image.open(path)
     else:
         return None
 
 
-def load_metadata(path, cols, class_cols=tuple(), valid_only=True):
+def load_metadata(path: str, cols: Iterable[int], class_cols: Collection[int] = tuple(), valid_only: bool = True)\
+        -> Tuple[List, int, List, List[Dict[str, int]], List[Dict[int, str]], int]:
     metadata = []
     # one dict for each class col
-    class_to_index = [{}] * len(class_cols)
-    index_to_class = [{}] * len(class_cols)
-    next_indices = [0] * len(class_cols) # next index for a new class value
+    class_to_index: List[Dict[str, int]] = [{}] * len(class_cols)
+    index_to_class: List[Dict[int, str]] = [{}] * len(class_cols)
+    next_indices = [0] * len(class_cols)  # next index for a new class value
     with open(path, 'r', newline='', encoding="utf8") as metadata_file:
         reader = csv.reader(metadata_file)
         headers = next(reader)

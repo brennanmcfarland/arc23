@@ -1,3 +1,5 @@
+from typing import *
+from __types import MetricFuncs
 
 
 # reduces a list to it's item if there's only one, else returns the list unchanged
@@ -15,6 +17,14 @@ def run_callbacks(hook, callbacks, *args):
     if hook in callbacks:
         for callback in callbacks[hook]:
             results.append(callback(*args))
+    return results
+
+
+# hook is the specific point at which the metrics are being called, eg on_item
+def run_metrics(hook, metrics: Iterable[MetricFuncs], *args):
+    results = []
+    for metric in metrics:
+        results.append(getattr(metric, hook)(*args))
     return results
 
 

@@ -1,8 +1,11 @@
 import torchvision.transforms as transforms
 import numpy as np
+from typing import Callable, Sequence, Any
+
+from __types import Tensor, TensorOp
 
 
-def to_tensor():
+def to_tensor() -> Callable[[Any], Tensor]:
     _to_tensor = transforms.ToTensor()
 
     def _apply(x):
@@ -10,7 +13,7 @@ def to_tensor():
     return _apply
 
 
-def downsample(factor):
+def downsample(factor: int) -> TensorOp:
     def _apply(x):
         # TODO: do this more elegantly, this probably also does unnecessary stuff like stretching if not divisible
         downsampled_size = [int(s // factor) for s in x.size]
@@ -18,7 +21,7 @@ def downsample(factor):
     return _apply
 
 
-def random_crop_to(size):
+def random_crop_to(size: Sequence[int]) -> TensorOp:
     random_crop = transforms.RandomCrop(size, pad_if_needed=True) # avoids exception if smaller than input dims
 
     def _apply(x):
@@ -27,7 +30,7 @@ def random_crop_to(size):
 
 
 # downsample and random crop st the transformed image covers as much of the original as possible
-def random_fit_to(size):
+def random_fit_to(size: Sequence[int]) -> TensorOp:
 
     def _apply(x):
         # TODO: make elegant

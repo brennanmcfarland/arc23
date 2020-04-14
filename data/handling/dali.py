@@ -1,3 +1,5 @@
+from typing import Callable, Sized
+
 import torch.utils.data as torchdata
 from nvidia import dali
 from nvidia.dali.plugin.pytorch import DALIGenericIterator
@@ -7,9 +9,9 @@ from nvidia.dali.plugin.pytorch import DALIGenericIterator
 # expects a pipeline closure, ie, a function closure that when called returns the next sample
 # NOTE: outputs from the DALI pipeline are still owned by DALI and will be invalidated after the next iterator call,
 # so if these outputs need preservation they must be copied before that
-class DALIIterableDataset(torchdata.IterableDataset):
-    def __init__(self, pipeline_closure, metadata, batch_size, *args, **kwargs):
-        super(DALIIterableDataset).__init__()
+class DALIIterableDataset(torchdata.IterableDataset):  # type: ignore
+    def __init__(self, pipeline_closure: Callable, metadata: Sized, batch_size: int, *args, **kwargs):
+        super(DALIIterableDataset, self).__init__()
         self.dali_pipeline = _DALIDataset(pipeline_closure, batch_size, *args, **kwargs)
         self.iterator = None
         self.iter = None
@@ -44,7 +46,7 @@ class DALIIterableDataset(torchdata.IterableDataset):
 # expects a pipeline closure, ie, a function closure that when called returns the next sample
 class _DALIDataset(dali.pipeline.Pipeline):
 
-    def __init__(self, pipeline_closure, batch_size, *args, num_threads=1, **kwargs):
+    def __init__(self, pipeline_closure: Callable, batch_size: int, *args, num_threads: int = 1, **kwargs):
         super(_DALIDataset, self).__init__(num_threads=num_threads, device_id=0, batch_size=batch_size, *args, **kwargs)
         self.dali_pipeline = pipeline_closure
 
@@ -53,7 +55,7 @@ class _DALIDataset(dali.pipeline.Pipeline):
 
 
 # a standard DALI pipeline closure for the common case of loading and preformatting images and their respective labels
-def dali_standard_image_classification_pipeline(data_dir, metadata_filename, batch_normalize=True):
+def dali_standard_image_classification_pipeline(data_dir: str, metadata_filename: str, batch_normalize: bool = True):
     input = dali.ops.FileReader(file_root=data_dir, file_list=metadata_filename, random_shuffle=True)
     decode = dali.ops.ImageDecoder()
     cast = dali.ops.Cast(dtype=dali.types.DALIDataType.FLOAT)  # TODO: better data type?

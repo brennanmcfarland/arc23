@@ -1,6 +1,7 @@
+from typing import Callable
 
 
-def pipe(*fs):
+def pipe(*fs: Callable) -> Callable:
     if len(fs) == 0:
         return lambda x: x
 

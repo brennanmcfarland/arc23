@@ -3,6 +3,10 @@ import torch.cuda as cuda
 import torch.nn as nn
 import torch.utils.checkpoint as torchcheckpoint
 
+from typing import Callable, Any, Union, List
+
+from __types import Module
+
 
 # TODO: move feature maps out of VRAM
 #  - https://medium.com/syncedreview/how-to-train-a-very-large-and-deep-model-on-one-gpu-7b7edfe2d072
@@ -13,14 +17,18 @@ import torch.utils.checkpoint as torchcheckpoint
 # performs optimizations in the backend if all input sizes are the same
 # if they're not though this will likely just make performance worse
 # NOTE: only works on cuda
-def optimize_cuda_for_fixed_input_size():
+def optimize_cuda_for_fixed_input_size() -> None:
     assert cuda.is_available()
-    backends.cudnn.benchmark = True
+    backends.cudnn.benchmark = True  # type: ignore
 
 
 # given a function to insert a certain number of checkpoints in a module, iteratively test an increasing number of
 # checkpoints until the model (and running it) fits in memory
-def adapt_checkpointing(checkpoint_func, run_func, module):
+def adapt_checkpointing(
+        checkpoint_func: Callable[[Module, int], Module],
+        run_func: Callable[[Module], Any],
+        module: Module
+) -> Module:
     # TODO: set a max before hard failure?
     # I'd use recursion here, but it would make it very easy to blow up the stack by accident
     num_checkpoints = 0
@@ -55,7 +63,7 @@ def adapt_checkpointing(checkpoint_func, run_func, module):
 #  do convolutions/dense only
 #  pass in what layers we want to checkpoint
 #  checkpoint at a given submodule recursion depth
-def checkpoint_sequential(module, num_checkpoints):
+def checkpoint_sequential(module: Module, num_checkpoints: int) -> Module:
     if num_checkpoints == 0:
         return module
     else:
@@ -65,7 +73,7 @@ def checkpoint_sequential(module, num_checkpoints):
 # checkpoint container class holding all sequential layers scoped by a checkpoint
 class CheckpointedSequential(nn.Module):
     # as with pytorch implementation of checkpoint_sequential, sequential can be an nn.Sequential or list of modules
-    def __init__(self, sequential, num_checkpoints):
+    def __init__(self, sequential: Union[nn.Sequential, List[Module]], num_checkpoints: int):
         super(CheckpointedSequential, self).__init__()
         self.sequential = sequential
         self.num_checkpoints = num_checkpoints
