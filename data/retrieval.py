@@ -30,15 +30,20 @@ def from_file(path: str) -> Union[Image.Image, None]:
         return None
 
 
-def load_metadata(path: str, cols: Iterable[int], class_cols: Collection[int] = tuple(), valid_only: bool = True)\
-        -> Tuple[List, int, List, List[Dict[str, int]], List[Dict[int, str]], int]:
+def load_metadata(
+        path: str,
+        cols: Iterable[int],
+        class_cols: Collection[int] = tuple(),
+        valid_only: bool = True,
+        delimiter=','
+) -> Tuple[List, int, List, List[Dict[str, int]], List[Dict[int, str]], int]:
     metadata = []
     # one dict for each class col
     class_to_index: List[Dict[str, int]] = [{}] * len(class_cols)
     index_to_class: List[Dict[int, str]] = [{}] * len(class_cols)
     next_indices = [0] * len(class_cols)  # next index for a new class value
     with open(path, 'r', newline='', encoding="utf8") as metadata_file:
-        reader = csv.reader(metadata_file)
+        reader = csv.reader(metadata_file, delimiter=delimiter)
         headers = next(reader)
         for row in reader:
             if len(row) != 0:
@@ -54,4 +59,7 @@ def load_metadata(path: str, cols: Iterable[int], class_cols: Collection[int] = 
                 metadata.append(metadatum)
     len_metadata = len(metadata)
     # split off the headers
+
+    if len(next_indices) == 0:
+        next_indices = [0]
     return metadata, len_metadata, headers, class_to_index, index_to_class, next_indices[-1]

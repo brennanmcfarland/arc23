@@ -3,8 +3,9 @@ import torch.nn as nn
 from typing import Sequence, MutableSequence
 
 from __types import Module, Loader, CustomLayerTypes, CustomLayerSuperclasses, Tensor, ModuleType, Shape, Any
+
 from model.execution import Trainer
-from app import dry_run
+from app import dry_run # TODO: fix
 
 
 # assumes that any nested submodules have already had their shape inferred if necessary
@@ -12,7 +13,11 @@ from app import dry_run
 def infer_shapes(layers: MutableSequence[Module], loader: Loader) -> Sequence[Module]:
     infer = ShapeInferer(loader)
     for l in range(len(layers[1:])):
-        layers[l+1] = layers[l+1](infer(layers[:l+1]))
+        # TODO: fix, shouldn't have actual inference logic here (but we don't want inference object to be stateful, either) - maybe just make it recursive?
+        if type(layers[l]).__name__ is 'Reshape':
+            layers[l+1] = layers[l+1](infer(layers[:l]))
+        else:
+            layers[l+1] = layers[l+1](infer(layers[:l+1]))
 
     return layers[1:]
 
@@ -100,13 +105,14 @@ class ShapeInferer:
         elif layer_type.__name__ is 'Flatten':
             # feed an example through the data loader and manually capture the output shape
             return self._run_prev_layers(prev_layers, layer_type).size()[-1]
-        elif (layer_type.__name__ is 'ReLU'
-                or layer_type.__name__ is 'LeakyReLU'
-                or layer_type.__name__ is 'Residual'
+        elif (layer_type.__name__ is 'ReLU' or 'LeakyReLU' or 'Residual' or 'Upsample'
                 or issubclass(layer_type, nn.modules.batchnorm._BatchNorm)
                 or issubclass(layer_type, nn.modules.pooling._MaxPoolNd)
                 or issubclass(layer_type, nn.modules.padding._ReflectionPadNd)):
             # reuse and pass along the previously inferred shape unchanged
             return self._infer(prev_layers[-2], prev_layers[:-1])
+        elif layer_type.__name__ is 'Reshape':
+            # TODO: cleanup/generalize, and this may not be correct (should be # filters/channels?)
+            return prev_layer.weight.size[0]
         else:
             raise NotImplementedError("No shape inference implementation for layer of type " + layer_type.__name__)

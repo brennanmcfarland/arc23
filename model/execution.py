@@ -57,14 +57,24 @@ def train_step(net: Module, trainer: Trainer, device: Device = None, squeeze_gtr
     return _apply
 
 
-def train(net: Module, loader: Loader, trainer: Trainer, callbacks=None, device=None, epochs=1, squeeze_gtruth=False
-          ) -> None:
+def train(
+        net: Module,
+        loader: Loader,
+        trainer: Trainer,
+        callbacks=None,
+        device=None,
+        step_func=None,
+        epochs=1,
+        squeeze_gtruth=False
+) -> None:
     if callbacks is None:
         callbacks = []
 
     steps_per_epoch = len(loader)
     callbacks = {hook: [callback(steps_per_epoch) for callback in callbacks] for hook, callbacks in callbacks.items()}
-    take_step = train_step(net, trainer, device=device, squeeze_gtruth=squeeze_gtruth)
+    take_step = step_func
+    if step_func is None:
+        take_step = train_step(net, trainer, device=device)
 
     for epoch in range(epochs):
         run_callbacks("on_epoch_start", callbacks)
