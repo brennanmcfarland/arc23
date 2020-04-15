@@ -87,6 +87,8 @@ def test(
         metrics = []
 
     print('TESTING')
+    prev_mode = get_train_mode_tree(net)
+    net.eval()
     with torch.no_grad():
         for l in loader:
             (inputs, gtruth) = l['inputs'], l['labels']
@@ -95,7 +97,9 @@ def test(
             if squeeze_gtruth:
                 gtruth = gtruth.squeeze(-1)
             run_metrics("on_item", metrics, inputs, outputs, gtruth)
-    return try_reduce_list(run_metrics("on_end", metrics))
+        result = try_reduce_list(run_metrics("on_end", metrics))
+    set_train_mode_tree(net, prev_mode)
+    return result
 
 
 # validation is just an alias for testing
