@@ -1,5 +1,7 @@
 import torch.utils.tensorboard as tensorboard
 from tabulate import tabulate
+import matplotlib.pyplot as plt
+import pandas as pd
 from typing import Iterable, Callable, Any, Sequence
 
 from __types import Bindable, OutputBinding, Table
@@ -10,7 +12,7 @@ def tensorboard_writer(*args, **kwargs) -> tensorboard.SummaryWriter:
 
 
 # TODO: make it accept variable args so it can be used in non-step callbacks
-def record_tensorboard_scalar(
+def scalar_to_tensorboard(
         scalar_provider: Bindable[OutputBinding, Callable],
         tensorboard_writer: tensorboard.SummaryWriter
 ) -> Bindable[OutputBinding, Callable]:
@@ -20,6 +22,21 @@ def record_tensorboard_scalar(
         def _run(loss, step, epoch):
             datapoint = scalar_func(loss, step, epoch)
             return tensorboard_writer.add_scalar(datapoint.label, datapoint.value, epoch * steps_per_epoch + step)
+        return _run
+    return _bind
+
+
+def matrix_to_csv(
+        matrix_provider: Bindable[OutputBinding, Callable],
+        out_path: str,
+        labels: Sequence[str] = None,
+) -> Bindable[OutputBinding, Callable]:
+    def _bind(steps_per_epoch):
+        matrix_func = matrix_provider(steps_per_epoch)
+
+        def _run(*args, **kwargs):
+            matrix = matrix_func(*args, **kwargs)
+            pd.DataFrame(matrix, columns=labels).to_csv(out_path + '.csv', index=False)
         return _run
     return _bind
 
