@@ -1,4 +1,4 @@
-from typing import Dict, TypeVar, Generic, Iterable
+from typing import Dict, TypeVar, Generic, Iterable, Sized
 
 import torch
 
@@ -22,7 +22,14 @@ def accuracy_by_category(categories: Iterable[T]) -> MetricFuncs:
     return MetricFuncs(on_item=closure.on_item, on_end=closure.on_end)
 
 
-# TODO: accuracy matrix, for % of each true category categorized as predicted category?
+def confusion_matrix(categories: Sized) -> MetricFuncs:
+    closure = ConfusionMatrix(categories)
+    return MetricFuncs(on_item=closure.on_item, on_end=closure.on_end)
+
+
+# TODO: fractional confusion matrix? or something interactive perhaps? that way could still see original data and
+# TODO: derivatives of it, look into using holoviews for this
+# TODO: some of this can probably be combined/refactored to only run computations once
 
 
 # helper for category_accuracy, since it's stateful
@@ -57,3 +64,17 @@ class AccuracyByCategory(Generic[T]):
 
     def on_end(self) -> Dict[T, float]:
         return {k: self.correct[k] / (self.total[k] if self.total[k] != 0 else -1) for k in self.total.keys()}
+
+
+class ConfusionMatrix:
+    def __init__(self, categories: Sized):
+        with torch.no_grad():
+            self.predicted_vs_actual = torch.zeros((len(categories), len(categories)))
+
+    def on_item(self, inputs, outputs, gtruth) -> None:
+        _, predicted = torch.max(outputs.data, 1)
+        self.predicted_vs_actual[predicted, gtruth] += 1
+
+    # TODO: return type is np array, may need to define new type for that
+    def on_end(self):
+        return self.predicted_vs_actual.numpy()
