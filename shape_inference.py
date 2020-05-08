@@ -105,7 +105,8 @@ class ShapeInferer:
                 or layer_type.__name__ is 'Residual'
                 or issubclass(layer_type, nn.modules.batchnorm._BatchNorm)
                 or issubclass(layer_type, nn.modules.pooling._MaxPoolNd)
-                or issubclass(layer_type, nn.modules.padding._ReflectionPadNd)):
+                or issubclass(layer_type, nn.modules.padding._ReflectionPadNd)
+                or issubclass(layer_type, nn.modules.dropout._DropoutNd)):
             # reuse and pass along the previously inferred shape unchanged
             return self._infer(prev_layers[-2], prev_layers[:-1])
         else:

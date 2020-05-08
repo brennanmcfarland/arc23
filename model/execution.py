@@ -8,11 +8,21 @@ from __utils import try_reduce_list, run_callbacks, run_metrics
 from __types import ModuleProperty, Method, Device, MetricFuncs, Tensor, Module, Loader
 
 
+# description of how to train the model, ie what optimizer and loss function to use
 class Trainer:
 
     def __init__(self, optimizer: Optimizer, loss):
         self.optimizer = optimizer
         self.loss = loss
+
+
+# a mutable collection of all state pertaining to training (not the model itself)
+class TrainState:
+
+    def __init__(self, epoch: int = 0):
+        # the current epoch we're on, may be nonzero if training is paused and resumed
+        # (eg by saving and loading the train state)
+        self.epoch = epoch
 
 
 # runs the network once without modifying the loader's state as a test/for profiling
@@ -57,22 +67,26 @@ def train_step(net: Module, trainer: Trainer, device: Device = None, squeeze_gtr
     return _apply
 
 
-def train(net: Module, loader: Loader, trainer: Trainer, callbacks=None, device=None, epochs=1, squeeze_gtruth=False
-          ) -> None:
+def train(net: Module, loader: Loader, trainer: Trainer, callbacks=None, device=None, train_state: TrainState = None,
+          epochs=1, squeeze_gtruth=False) -> None:
     if callbacks is None:
         callbacks = []
+    if train_state is None:
+        train_state = TrainState(0)
 
     steps_per_epoch = len(loader)
     callbacks = {hook: [callback(steps_per_epoch) for callback in callbacks] for hook, callbacks in callbacks.items()}
     take_step = train_step(net, trainer, device=device, squeeze_gtruth=squeeze_gtruth)
+    initial_epoch = train_state.epoch
 
-    for epoch in range(epochs):
+    for epoch in range(initial_epoch, epochs):
         run_callbacks("on_epoch_start", callbacks)
         print('----BEGIN EPOCH ', epoch, '----')
         for step, datum in enumerate(loader):
             loss = take_step(datum['inputs'], datum['labels'])
             run_callbacks("on_step", callbacks, loss, step, epoch)
         run_callbacks("on_epoch_end", callbacks)
+        train_state.epoch = epoch
     print('TRAINING COMPLETE!')
 
 
