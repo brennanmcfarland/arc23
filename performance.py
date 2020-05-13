@@ -53,6 +53,8 @@ def adapt_checkpointing(
                         del param.grad
                 cuda.empty_cache()
                 num_checkpoints += 1
+            else:
+                raise err
 
 
 # checkpoint but only operates on top-level layers in a sequential model

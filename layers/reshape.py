@@ -8,4 +8,5 @@ class Reshape(nn.Module):
         self.kwargs = kwargs
 
     def forward(self, x):
-        return x.view(*self.args, **self.kwargs)
+        # preserve batch size (the first size dimension)
+        return x.view(x.size()[0], *self.args, **self.kwargs)

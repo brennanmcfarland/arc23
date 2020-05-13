@@ -41,6 +41,8 @@ Loader = DataLoader
 
 Shape = Tuple
 
+OneOrMany = Union[T, Iterable[T]]
+
 
 # shape inference implementation overrides for custom layers
 CustomLayerTypes = Dict[str, Callable[[Module, Sequence[Module]], Shape]]

@@ -23,9 +23,10 @@ def infer_shapes(layers: MutableSequence[Module], loader: Loader) -> Sequence[Mo
 
 
 class Input(nn.Module):
-    def __init__(self, input_size: Shape = None):
+    def __init__(self, input_size: Shape = None, loader_key: str = 'inputs'):
         super(Input, self).__init__()
         self.size = input_size
+        self.loader_key = loader_key
 
     def forward(self, input):
         return input
@@ -95,7 +96,7 @@ class ShapeInferer:
             else:
                 if self.loader is None:
                     raise ValueError("must provide a loader to shape inference for layer type " + layer_type.__name__)
-                inputs = next(iter(self.loader))['inputs']
+                inputs = next(iter(self.loader))[prev_layer.loader_key]
                 return inputs.size()[1]
         elif (issubclass(layer_type, nn.modules.conv._ConvNd)
               or layer_type.__name__ is 'Linear'

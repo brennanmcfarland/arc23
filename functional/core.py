@@ -11,3 +11,9 @@ def pipe(*fs: Callable) -> Callable:
         else:
             return pipe(*fs[1:])(fs[0](x))
     return _apply
+
+
+def ffork(*fs: Callable) -> Callable:
+    def _apply(*args, **kwargs):
+        return (f(*args, **kwargs) for f in fs)
+    return _apply

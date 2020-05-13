@@ -2,9 +2,10 @@ import torch.utils.tensorboard as tensorboard
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 import pandas as pd
-from typing import Iterable, Callable, Any, Sequence
+from typing import Iterable, Callable, Any, Sequence, Union
 
-from __types import Bindable, OutputBinding, Table
+from functional import one_or_many
+from __types import Bindable, OutputBinding, Table, OneOrMany, LabelledValue
 
 
 def tensorboard_writer(*args, **kwargs) -> tensorboard.SummaryWriter:
@@ -22,6 +23,18 @@ def scalar_to_tensorboard(
         def _run(loss, step, epoch):
             datapoint = scalar_func(loss, step, epoch)
             return tensorboard_writer.add_scalar(datapoint.label, datapoint.value, epoch * steps_per_epoch + step)
+        return _run
+    return _bind
+
+
+def image_to_tensorboard(
+        img_func: Callable[[Any], LabelledValue],
+        tensorboard_writer: tensorboard.SummaryWriter
+) -> Bindable[OutputBinding, Callable]:
+    def _bind(steps_per_epoch):
+        def _run(*args, **kwargs):
+            img = img_func(*args, **kwargs)
+            return tensorboard_writer.add_image(img.label, img.value)
         return _run
     return _bind
 
@@ -59,14 +72,20 @@ def print_with_step(step_data_provider: Bindable[OutputBinding, Callable]) -> Bi
     return _bind
 
 
-def print_line(line_provider: Bindable[OutputBinding, Callable]) -> Bindable[OutputBinding, Callable]:
+def print_line(line_provider: OneOrMany[Bindable[OutputBinding, Callable]])\
+        -> OneOrMany[Bindable[OutputBinding, Callable]]:
     def _bind(steps_per_epoch):
-        line_func = line_provider(steps_per_epoch)
+        line_func = one_or_many.bind(line_provider, lambda l: l(steps_per_epoch))  # line_provider(steps_per_epoch)
 
         def _run(*args, **kwargs):
-            datapoint = line_func(*args, **kwargs)
-            print(datapoint.label + ': ' + ''.join([str(i) for i in datapoint.value]))
-            return datapoint.value
+            datapoint = one_or_many.bind(line_func, lambda l: l(*args, **kwargs))  # line_func(*args, **kwargs)
+            print_string = one_or_many.bind(
+                datapoint, lambda d: d.label + ': ' + ''.join([str(i) for i in d.value])
+            )
+            print_string = ' '.join(list(print_string))
+            print(print_string)
+            #print(datapoint.label + ': ' + ''.join([str(i) for i in datapoint.value]))
+            return one_or_many.bind(datapoint, lambda d: d.value)
         return _run
     return _bind
 

@@ -67,7 +67,6 @@ def train_step(net: Module, trainer: Trainer, device: Device = None, squeeze_gtr
     return _apply
 
 
-<<<<<<< HEAD
 def train(
         net: Module,
         loader: Loader,
@@ -92,12 +91,15 @@ def train(
     initial_epoch = train_state.epoch
 
     for epoch in range(initial_epoch, epochs):
-        run_callbacks("on_epoch_start", callbacks)
+        if epoch == 0:
+            run_callbacks("on_epoch", callbacks, epoch)
+        run_callbacks("on_epoch_start", callbacks, epoch)
         print('----BEGIN EPOCH ', epoch, '----')
         for step, datum in enumerate(loader):
             loss = take_step(datum['inputs'], datum['labels'])
             run_callbacks("on_step", callbacks, loss, step, epoch)
-        run_callbacks("on_epoch_end", callbacks)
+        run_callbacks("on_epoch_end", callbacks, epoch)
+        run_callbacks("on_epoch", callbacks, epoch)
         train_state.epoch = epoch
     print('TRAINING COMPLETE!')
 
