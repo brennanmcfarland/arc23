@@ -10,3 +10,4 @@ class GAN(nn.Module):
     def forward(self, x):
         # preserve batch size (the first size dimension)
         return self.discriminator(self.generator(x))
+

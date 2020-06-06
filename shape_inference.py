@@ -103,10 +103,13 @@ class ShapeInferer:
               ):
             # the out_features dim
             return prev_layer.weight.size()[0]
+        elif layer_type.__name__ is 'MinibatchStdDev':
+            # add 1 to the previously inferred shape to account for extra channel
+            return self._infer(prev_layers[-2], prev_layers[:-1]) + 1
         elif layer_type.__name__ is 'Flatten':
             # feed an example through the data loader and manually capture the output shape
             return self._run_prev_layers(prev_layers, layer_type).size()[-1]
-        elif (layer_type.__name__ is 'ReLU' or 'LeakyReLU' or 'Residual' or 'Upsample'
+        elif (layer_type.__name__ is 'ReLU' or 'LeakyReLU' or 'Residual' or 'Upsample' or 'PixelNorm'
                 or issubclass(layer_type, nn.modules.batchnorm._BatchNorm)
                 or issubclass(layer_type, nn.modules.pooling._MaxPoolNd)
                 or issubclass(layer_type, nn.modules.padding._ReflectionPadNd)
