@@ -96,7 +96,7 @@ def train(
         run_callbacks("on_epoch_start", callbacks, epoch)
         print('----BEGIN EPOCH ', epoch, '----')
         for step, datum in enumerate(loader):
-            loss = take_step(datum['inputs'], datum['labels'])
+            loss = take_step(datum['inputs'], datum['labels'] / 255.) # TODO: fix division to be in data pipeline
             run_callbacks("on_step", callbacks, loss, step, epoch)
         run_callbacks("on_epoch_end", callbacks, epoch)
         run_callbacks("on_epoch", callbacks, epoch)

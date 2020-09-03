@@ -16,8 +16,10 @@ class ScaledNoise(torch.nn.Module):
         # broadcast y across all channels
         projection_size = list(y.size())
         projection_size[1] = self.channels
+        projection_dims = [1] * len(projection_size)
+        projection_dims[1] = self.channels
         y = y.expand(projection_size)
-        per_feature_scaling = self.per_feature_scaling.expand(projection_size)
+        per_feature_scaling = torch.reshape(self.per_feature_scaling, projection_dims).expand(projection_size)
         #print(y.data.cpu().numpy())
         # for i in range(self.per_feature_scaling.size()[0]):
         #     y[:, i] = y[:, i] * self.per_feature_scaling[i]

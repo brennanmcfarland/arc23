@@ -63,7 +63,7 @@ def layer_stats(
         hook_funcs: Iterable[Callable[[], Tuple[ModuleProperty, str]]]
 ) -> Bindable[int, Callable[[], LabelledValue]]:
     def _bind(steps_per_epoch: int):
-        def _run():
+        def _run(*args, **kwargs):
             for hook_func in hook_funcs:
                 results = []
                 run_with_hook(

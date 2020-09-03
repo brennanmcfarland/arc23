@@ -83,6 +83,10 @@ class ShapeInferer:
 
     def _infer(self, prev_layer: Module, prev_layers: Sequence[Module]) -> int:
         layer_type = type(prev_layer)
+        if hasattr(prev_layer, 'weight'):
+            weight = prev_layer.weight
+        elif hasattr(prev_layer, 'weight_orig'):
+            weight = prev_layer.weight_orig
         if layer_type.__name__ in self.custom_layer_types:
             # the value returned from the custom layer inference
             return self.custom_layer_types[layer_type.__name__](prev_layer, prev_layers)
@@ -102,7 +106,7 @@ class ShapeInferer:
               or layer_type.__name__ is 'Linear'
               ):
             # the out_features dim
-            return prev_layer.weight.size()[0]
+            return weight.size()[0]
         elif layer_type.__name__ is 'MinibatchStdDev':
             # add 1 to the previously inferred shape to account for extra channel
             return self._infer(prev_layers[-2], prev_layers[:-1]) + 1
@@ -118,6 +122,6 @@ class ShapeInferer:
             return self._infer(prev_layers[-2], prev_layers[:-1])
         elif layer_type.__name__ is 'Reshape':
             # TODO: cleanup/generalize, and this may not be correct (should be # filters/channels?)
-            return prev_layer.weight.size[0]
+            return weight.size[0]
         else:
             raise NotImplementedError("No shape inference implementation for layer of type " + layer_type.__name__)
