@@ -1,4 +1,5 @@
 import torch.cuda as cuda
+from torch import is_tensor
 
 from tabulate import tabulate
 import functools  # TODO: may be a lot more here we can use, especially see single dispatch and cached property
@@ -70,3 +71,14 @@ def _format_size(bytes: int) -> str:
     p = math.pow(1024, u)
     b = round(bytes / p, 2)
     return "%s %s" % (b, units[u])
+
+
+# prints a list of all allocated tensors
+def print_allocated_tensors():
+    import gc
+    for obj in gc.get_objects():
+        try:
+            if is_tensor(obj) or (hasattr(obj, 'data') and is_tensor(obj.data)):
+                print(type(obj), obj.size())
+        except:
+            pass

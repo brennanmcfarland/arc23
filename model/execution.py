@@ -46,6 +46,9 @@ def dry_run(
         batch = next(iter(loader))
         result = train_step_func(net, trn, device=device)(batch['inputs'], batch['labels'])  # TODO: generalize?
         set_train_mode_tree(net, prev_mode)
+
+        if trn is not None:
+            trn.optimizer.zero_grad()
         return result
     return _apply
 
@@ -67,7 +70,7 @@ def train_step(net: Module, trainer: Trainer, device: Device = None, squeeze_gtr
     return _apply
 
 
-def train(net: Module, loader: Loader, trainer: Trainer, callbacks=None, device=None, train_state: TrainState = None,
+def train(net: Module, loader: Loader, trainer: Trainer, callbacks=None, device=None, step_func=None, train_state: TrainState = None,
           epochs=1, squeeze_gtruth=False) -> None:
     if callbacks is None:
         callbacks = []
@@ -76,16 +79,20 @@ def train(net: Module, loader: Loader, trainer: Trainer, callbacks=None, device=
 
     steps_per_epoch = len(loader)
     callbacks = {hook: [callback(steps_per_epoch) for callback in callbacks] for hook, callbacks in callbacks.items()}
-    take_step = train_step(net, trainer, device=device, squeeze_gtruth=squeeze_gtruth)
+    take_step = step_func
+    if step_func is None:
+        take_step = train_step(net, trainer, device=device, squeeze_gtruth=squeeze_gtruth)
     initial_epoch = train_state.epoch
 
+    run_callbacks("on_epoch", callbacks, 0)
     for epoch in range(initial_epoch, epochs):
-        run_callbacks("on_epoch_start", callbacks)
+        run_callbacks("on_epoch_start", callbacks, epoch)
         print('----BEGIN EPOCH ', epoch, '----')
         for step, datum in enumerate(loader):
             loss = take_step(datum['inputs'], datum['labels'])
             run_callbacks("on_step", callbacks, loss, step, epoch)
         run_callbacks("on_epoch_end", callbacks)
+        run_callbacks("on_epoch", callbacks, epoch)
         train_state.epoch = epoch
     print('TRAINING COMPLETE!')
 

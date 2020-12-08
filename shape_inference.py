@@ -4,7 +4,7 @@ from typing import Sequence, MutableSequence
 
 from __types import Module, Loader, CustomLayerTypes, CustomLayerSuperclasses, Tensor, ModuleType, Shape, Any
 from model.execution import Trainer
-from app import dry_run
+from model.execution import dry_run
 
 
 # assumes that any nested submodules have already had their shape inferred if necessary

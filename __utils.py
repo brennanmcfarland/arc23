@@ -42,3 +42,8 @@ def on_interval(func, interval):
             if self.call_counter == 0:
                 return self.func(*args, **kwargs)
     return OnInterval(func, interval)
+
+
+def split_list_at(split_points: Iterable[int], list: List):
+    modified_split_points = (None, *reversed(split_points), 0)
+    return (list[n:m] for m, n in zip(modified_split_points[:-1], modified_split_points[1:]))

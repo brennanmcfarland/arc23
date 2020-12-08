@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from typing import Iterable, Callable, Any, Sequence
 
-from __types import Bindable, OutputBinding, Table
+from __types import Bindable, OutputBinding, Table, LabelledValue
 
 
 def tensorboard_writer(*args, **kwargs) -> tensorboard.SummaryWriter:
@@ -22,6 +22,30 @@ def scalar_to_tensorboard(
         def _run(loss, step, epoch):
             datapoint = scalar_func(loss, step, epoch)
             return tensorboard_writer.add_scalar(datapoint.label, datapoint.value, epoch * steps_per_epoch + step)
+        return _run
+    return _bind
+
+
+def image_to_tensorboard(
+        img_func: Callable[[Any], LabelledValue],
+        tensorboard_writer: tensorboard.SummaryWriter
+) -> Bindable[OutputBinding, Callable]:
+    def _bind(steps_per_epoch):
+        def _run(*args, **kwargs):
+            img = img_func(*args, **kwargs)
+            return tensorboard_writer.add_image(img.label, img.value)
+        return _run
+    return _bind
+
+
+def images_to_tensorboard(
+        img_func: Callable[[Any], LabelledValue],
+        tensorboard_writer: tensorboard.SummaryWriter
+) -> Bindable[OutputBinding, Callable]:
+    def _bind(steps_per_epoch):
+        def _run(*args, **kwargs):
+            img = img_func(*args, **kwargs)
+            return tensorboard_writer.add_images(img.label, img.value)
         return _run
     return _bind
 
